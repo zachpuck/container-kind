@@ -1,0 +1,5 @@
+type: chart
+builds:
+  - image: samsung_cnct/kind
+    context: kind
+    dockerContext: .
