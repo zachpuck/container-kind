@@ -24,6 +24,10 @@ RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y docker-ce
 
+# Configure docker
+RUN mkdir -p /etc/docker/ && \
+    echo '{"storage-driver": "vfs"}' > /etc/docker/daemon.json
+
 # Install golang
 ADD https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz /tmp
 RUN tar -C /usr/local -xzf /tmp/go${GOLANG_VERSION}.linux-amd64.tar.gz && \
