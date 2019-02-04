@@ -10,7 +10,9 @@ RUN apt-get update && \
                        ca-certificates \
                        curl \
                        gnupg2 \
-                       software-properties-common
+                       software-properties-common \
+                       python \
+                       python-pip
 
 # Install docker
 RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
@@ -55,6 +57,11 @@ RUN mkdir -p /go/src/sigs.k8s.io && \
     git clone https://github.com/kubernetes-sigs/kind.git && \
     go install sigs.k8s.io/kind && \
     rm -rf /go/src/sigs.k8s.io/
+
+# Install AWS client
+RUN pip install awscli --upgrade
+RUN go get -u -v github.com/kubernetes-sigs/aws-iam-authenticator/cmd/aws-iam-authenticator && \
+    rm -rf /go/src/
 
 # Cleanup unnecessary files
 RUN rm -rf /var/lib/apt/lists/*
