@@ -2,6 +2,7 @@ FROM debian:stretch-20181226
 
 ARG GOLANG_VERSION=1.11.4
 ARG HELM_VERSION=2.12.1
+ARG HELMFILE_VER=v0.54.1
 
 RUN apt-get update && \
     apt-get upgrade -y && \
@@ -57,7 +58,6 @@ ENV HELM_HOST localhost:44134
 RUN helm plugin install https://github.com/rimusz/helm-tiller
 
 # install helmfile
-ENV HELMFILE_VER=v0.54.1
 RUN curl -sL --output /usr/local/bin/helmfile https://github.com/roboll/helmfile/releases/download/$HELMFILE_VER/helmfile_linux_amd64 && \
     chmod 755 /usr/local/bin/helmfile
 
