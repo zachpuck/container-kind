@@ -2,6 +2,7 @@ FROM debian:stretch-20181226
 
 ARG GOLANG_VERSION=1.11.4
 ARG HELM_VERSION=2.12.1
+ARG HELMFILE_VER=v0.54.1
 
 RUN apt-get update && \
     apt-get upgrade -y && \
@@ -49,7 +50,16 @@ ADD https://storage.googleapis.com/kubernetes-helm/helm-v${HELM_VERSION}-linux-a
 RUN cd /tmp && \
     tar -xzf /tmp/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
     mv /tmp/linux-amd64/helm /usr/local/bin && \
-    rm -rf /tmp/linux-amd64 /tmp/helm-v${HELM_VERSION}-linux-amd64.tar.gz
+    rm -rf /tmp/linux-amd64 /tmp/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
+    helm init -c
+
+# Install helm plugin tiller (for local tiller)
+ENV HELM_HOST localhost:44134
+RUN helm plugin install https://github.com/rimusz/helm-tiller
+
+# install helmfile
+RUN curl -sL --output /usr/local/bin/helmfile https://github.com/roboll/helmfile/releases/download/$HELMFILE_VER/helmfile_linux_amd64 && \
+    chmod 755 /usr/local/bin/helmfile
 
 # Install kind
 RUN mkdir -p /go/src/sigs.k8s.io && \
