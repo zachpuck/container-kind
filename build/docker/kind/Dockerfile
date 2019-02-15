@@ -1,49 +1,25 @@
-FROM debian:stretch-20181226
+FROM docker:18.09.2-dind
 
-ARG GOLANG_VERSION=1.11.4
+ARG KUBECTL_VERSION=v1.13.0
 ARG HELM_VERSION=2.12.1
 ARG HELMFILE_VER=v0.54.1
 
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y git \
-                       apt-transport-https \
-                       ca-certificates \
-                       curl \
-                       gnupg2 \
-                       software-properties-common \
-                       python \
-                       python-pip
-
-# Install docker
-RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
-
-RUN add-apt-repository \
-   "deb [arch=amd64] https://download.docker.com/linux/debian \
-   $(lsb_release -cs) \
-   stable"
-
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y docker-ce
+RUN apk update && apk add --no-cache curl musl-dev git go python py-pip ca-certificates
 
 # Configure docker
 RUN mkdir -p /etc/docker/ && \
     echo '{"storage-driver": "vfs"}' > /etc/docker/daemon.json
 
-# Install golang
-ADD https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz /tmp
-RUN tar -C /usr/local -xzf /tmp/go${GOLANG_VERSION}.linux-amd64.tar.gz && \
-    rm -f /tmp/go${GOLANG_VERSION}.linux-64.tar.gz
+# Configure go
+ENV GOROOT=/usr/lib/go
+ENV GOPATH=/go
+ENV PATH=/go/bin:$PATH
 
-ENV PATH /usr/local/go/bin:/go/bin:$PATH
-ENV GOPATH /go
+RUN mkdir -p ${GOPATH}/src ${GOPATH}/bin
 
 # Install kubectl
-RUN curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
-RUN echo "deb https://apt.kubernetes.io/ kubernetes-stretch main" | tee -a /etc/apt/sources.list.d/kubernetes.list
-RUN apt-get update && \
-    apt-get install -y kubectl
+RUN curl -L https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl && \
+    chmod +x /usr/local/bin/kubectl
 
 # Install helm
 ADD https://storage.googleapis.com/kubernetes-helm/helm-v${HELM_VERSION}-linux-amd64.tar.gz /tmp
@@ -72,6 +48,3 @@ RUN mkdir -p /go/src/sigs.k8s.io && \
 RUN pip install awscli --upgrade
 RUN go get -u -v github.com/kubernetes-sigs/aws-iam-authenticator/cmd/aws-iam-authenticator && \
     rm -rf /go/src/
-
-# Cleanup unnecessary files
-RUN rm -rf /var/lib/apt/lists/*
