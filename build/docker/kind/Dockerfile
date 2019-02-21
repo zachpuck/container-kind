@@ -30,7 +30,7 @@ RUN curl -L https://storage.googleapis.com/kubernetes-release/release/v${KUBERNE
   chmod +x /usr/local/bin/helm
 
 FROM docker:18.09.2
-LABEL authors="Marat Garafutdinov<maratoid@gmail.com>"
+LABEL authors="Samsung CNCT<team@cnct.io>"
 
 ARG CLI_VERSION=1.16.109
 
