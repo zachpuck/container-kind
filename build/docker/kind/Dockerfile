@@ -1,77 +1,47 @@
-FROM debian:stretch-20181226
+FROM golang:1.11-alpine3.8 as builder
+LABEL authors="Samsung CNCT<team@cnct.io>"
 
-ARG GOLANG_VERSION=1.11.4
+ARG KUBERNETES_VERSION=1.13.0
+ARG KUBERNETES_ARCH=amd64
 ARG HELM_VERSION=2.12.1
-ARG HELMFILE_VER=v0.54.1
+ARG HELM_ARCH=amd64
+ARG HELMFILE_VER=0.45.3
+ARG AWS_AUTH_VER="1.11.5/2018-12-06"
+ARG AWS_AUTH_ARCH=amd64
 
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y git \
-                       apt-transport-https \
-                       ca-certificates \
-                       curl \
-                       gnupg2 \
-                       software-properties-common \
-                       python \
-                       python-pip
+RUN apk update && \
+  apk add curl git
 
-# Install docker
-RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+RUN go get sigs.k8s.io/kind
 
-RUN add-apt-repository \
-   "deb [arch=amd64] https://download.docker.com/linux/debian \
-   $(lsb_release -cs) \
-   stable"
+RUN curl -L https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/linux/${KUBERNETES_ARCH}/kubectl \
+  -o /usr/local/bin/kubectl && \
+  chmod +x /usr/local/bin/kubectl && \
+  curl -L https://amazon-eks.s3-us-west-2.amazonaws.com/${AWS_AUTH_VER}/bin/linux/${AWS_AUTH_ARCH}/aws-iam-authenticator \
+  -o /usr/local/bin/aws-iam-authenticator && \
+  chmod +x /usr/local/bin/aws-iam-authenticator && \
+  curl -L https://github.com/roboll/helmfile/releases/download/v${HELMFILE_VER}/helmfile_linux_amd64 \
+  -o /usr/local/bin/helmfile && \
+  chmod +x /usr/local/bin/helmfile && \
+  curl -L https://storage.googleapis.com/kubernetes-helm/helm-v${HELM_VERSION}-linux-${HELM_ARCH}.tar.gz \
+  -o helm-v${HELM_VERSION}-linux-${HELM_ARCH}.tar.gz && \
+  tar -xvzf helm-v${HELM_VERSION}-linux-${HELM_ARCH}.tar.gz && \
+  cp linux-${HELM_ARCH}/helm /usr/local/bin && \
+  chmod +x /usr/local/bin/helm
 
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y docker-ce
+FROM docker:18.09.2
+LABEL authors="Marat Garafutdinov<maratoid@gmail.com>"
 
-# Configure docker
-RUN mkdir -p /etc/docker/ && \
-    echo '{"storage-driver": "vfs"}' > /etc/docker/daemon.json
+ARG CLI_VERSION=1.16.109
 
-# Install golang
-ADD https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz /tmp
-RUN tar -C /usr/local -xzf /tmp/go${GOLANG_VERSION}.linux-amd64.tar.gz && \
-    rm -f /tmp/go${GOLANG_VERSION}.linux-64.tar.gz
+RUN mkdir -p /usr/local/bin && apk --update  –no-cache add curl git bash jq python py-pip groff less
+COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
+COPY --from=builder /usr/local/bin/aws-iam-authenticator /usr/local/bin/aws-iam-authenticator
+COPY --from=builder /usr/local/bin/helmfile /usr/local/bin/helmfile
+COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
+COPY --from=builder /go/bin/kind /usr/local/bin/kind
+RUN helm init --client-only && helm plugin install https://github.com/rimusz/helm-tiller && \
+  pip install --upgrade pip && \
+  pip install --no-cache-dir awscli==${CLI_VERSION}
 
-ENV PATH /usr/local/go/bin:/go/bin:$PATH
-ENV GOPATH /go
-
-# Install kubectl
-RUN curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
-RUN echo "deb https://apt.kubernetes.io/ kubernetes-stretch main" | tee -a /etc/apt/sources.list.d/kubernetes.list
-RUN apt-get update && \
-    apt-get install -y kubectl
-
-# Install helm
-ADD https://storage.googleapis.com/kubernetes-helm/helm-v${HELM_VERSION}-linux-amd64.tar.gz /tmp
-RUN cd /tmp && \
-    tar -xzf /tmp/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
-    mv /tmp/linux-amd64/helm /usr/local/bin && \
-    rm -rf /tmp/linux-amd64 /tmp/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
-    helm init -c
-
-# Install helm plugin tiller (for local tiller)
-ENV HELM_HOST localhost:44134
-RUN helm plugin install https://github.com/rimusz/helm-tiller
-
-# install helmfile
-RUN curl -sL --output /usr/local/bin/helmfile https://github.com/roboll/helmfile/releases/download/$HELMFILE_VER/helmfile_linux_amd64 && \
-    chmod 755 /usr/local/bin/helmfile
-
-# Install kind
-RUN mkdir -p /go/src/sigs.k8s.io && \
-    cd /go/src/sigs.k8s.io/ && \
-    git clone https://github.com/kubernetes-sigs/kind.git && \
-    go install sigs.k8s.io/kind && \
-    rm -rf /go/src/sigs.k8s.io/
-
-# Install AWS client
-RUN pip install awscli --upgrade
-RUN go get -u -v github.com/kubernetes-sigs/aws-iam-authenticator/cmd/aws-iam-authenticator && \
-    rm -rf /go/src/
-
-# Cleanup unnecessary files
-RUN rm -rf /var/lib/apt/lists/*
+CMD ["/usr/local/bin/kind"]  
