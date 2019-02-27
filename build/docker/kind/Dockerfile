@@ -34,7 +34,7 @@ LABEL authors="Samsung CNCT<team@cnct.io>"
 
 ARG CLI_VERSION=1.16.109
 
-RUN mkdir -p /usr/local/bin && apk --update --no-cache add curl git bash jq python py-pip groff less
+RUN mkdir -p /usr/local/bin && apk --update --no-cache add curl git bash jq python py-pip groff less grep
 COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY --from=builder /usr/local/bin/aws-iam-authenticator /usr/local/bin/aws-iam-authenticator
 COPY --from=builder /usr/local/bin/helmfile /usr/local/bin/helmfile
