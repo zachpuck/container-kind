@@ -44,4 +44,9 @@ RUN helm init --client-only && helm plugin install https://github.com/rimusz/hel
   pip install --upgrade pip && \
   pip install --no-cache-dir awscli==${CLI_VERSION}
 
+# azure ci install
+RUN apk add --virtual=build gcc libffi-dev musl-dev openssl-dev python-dev make && \
+  pip --no-cache-dir install azure-cli && \
+  apk del --purge build
+
 CMD ["/usr/local/bin/kind"]  
